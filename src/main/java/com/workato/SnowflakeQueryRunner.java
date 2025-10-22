@@ -23,6 +23,10 @@ public class SnowflakeQueryRunner {
                 "net.snowflake.jdbc.loggerImpl",
                 "net.snowflake.client.log.SLF4JLogger"
         );
+        System.setProperty(
+                "net.snowflake.jdbc.enableBouncyCastle",
+                "true"
+        );
    }
     
     public static void main(String[] args) {
@@ -77,6 +81,12 @@ public class SnowflakeQueryRunner {
                 case "--warehouse":
                     params.warehouse = value;
                     break;
+                case "--privatekey":
+                    params.privateKeyPath = value;
+                    break;
+                case "--passphrase":
+                    params.privateKeyPassPhrase = value;
+                    break;
                 case "--query":
                     params.query = value;
                     break;
@@ -87,7 +97,7 @@ public class SnowflakeQueryRunner {
         }
         
         // Validate required parameters
-        if (params.account == null || params.user == null || params.password == null || 
+        if (params.account == null || params.user == null || (params.password == null && params.privateKeyPath == null) || 
             params.database == null || params.schema == null || params.warehouse == null || 
             params.query == null) {
             return null;
@@ -106,17 +116,24 @@ public class SnowflakeQueryRunner {
         // Set connection properties
         Properties properties = new Properties();
         properties.put("user", params.user);
-        properties.put("password", params.password);
+        if (params.password != null) {
+            properties.put("password", params.password);
+        }
         properties.put("warehouse", params.warehouse);
         properties.put("db", params.database);
         properties.put("schema", params.schema);
-        
+        if (params.privateKeyPath != null) {
+            properties.put("private_key_file", params.privateKeyPath);
+            if (params.privateKeyPassPhrase != null)
+                properties.put("private_key_file_pwd", params.privateKeyPassPhrase);
+        }
         System.out.println("Connecting to Snowflake...");
         System.out.println("Account: " + params.account);
         System.out.println("Database: " + params.database);
         System.out.println("Schema: " + params.schema);
         System.out.println("Warehouse: " + params.warehouse);
         System.out.println("User: " + params.user);
+        System.out.println("Private Key Path: " + params.privateKeyPath);
         System.out.println();
         
         try (Connection connection = DriverManager.getConnection(url, properties)) {
@@ -189,6 +206,8 @@ public class SnowflakeQueryRunner {
         System.out.println("  --account <account>      Snowflake account (e.g., 'myaccount' or 'myaccount.region.cloud')");
         System.out.println("  --user <username>        Snowflake username");
         System.out.println("  --password <password>    Snowflake password");
+        System.out.println("  --privatekey <path_to_p8_key>    Path to the registered private key file in Snowflake ");
+        System.out.println("  --passphrase <passphrase>    Passphrase for the private key file if encrypted");
         System.out.println("  --database <database>    Database name");
         System.out.println("  --schema <schema>        Schema name");
         System.out.println("  --warehouse <warehouse>  Warehouse name");
@@ -209,6 +228,8 @@ public class SnowflakeQueryRunner {
         String account;
         String user;
         String password;
+        String privateKeyPath;
+        String privateKeyPassPhrase;
         String database;
         String schema;
         String warehouse;
